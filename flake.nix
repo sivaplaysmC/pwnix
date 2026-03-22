@@ -164,7 +164,7 @@
           "env-store-path": "${env}"
         }
         EOF
-        ${pkgs.bwrap}/bin/bwrap \
+        ${pkgs.bubblewrap}/bin/bwrap \
             --overlay-src "$PWNIX_ROOTFS/" \
             --overlay "$PWNIX_UPPER_DIR" "$PWNIX_WORK_DIR" / \
             --dev /dev \
