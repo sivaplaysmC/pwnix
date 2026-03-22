@@ -111,6 +111,7 @@ def start():
         [str(RESULT_BIN)],
         env={
             **os.environ,
+            "PWNIX_HOSTNAME": Path.cwd().name,
             "PWNIX_ROOTFS": str(ROOTFS_DIR),
             "PWNIX_UPPER_DIR": str(UPPER_DIR),
             "PWNIX_WORK_DIR": str(WORK_DIR),

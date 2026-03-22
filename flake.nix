@@ -177,6 +177,7 @@
             --uid 0 --gid 0 \
             --ro-bind /nix /nix \
             --new-session \
+            --hostname "$PWNIX_HOSTNAME" \
             --clearenv \
             --setenv LANG "C.UTF-8" \
             --setenv LC_ALL "C.UTF-8" \
@@ -188,6 +189,11 @@
             --ro-bind ${pkgs.zsh}/bin/zsh /bin/zsh \
             --info-fd 9 \
             -- /bin/sh -c '
+        cat > /etc/hosts <<EOF3
+        127.0.0.1   localhost
+        127.0.0.1   $PWNIX_HOSTNAME
+        ::1         localhost
+        EOF3
         cat > /etc/zprofile <<EOF2
         export LANG="C.UTF-8"
         export LC_ALL="C.UTF-8"
