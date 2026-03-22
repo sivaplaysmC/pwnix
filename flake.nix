@@ -137,6 +137,7 @@
           pkgs.ripgrep
           pkgs.jq
           pkgs.gcc
+          pkgs.musl.dev
           pkgs.yazi
           pkgs.neovim
           pkgs.zsh
@@ -152,6 +153,8 @@
           pkgs.less
           pkgs.gnused
           pkgs.gnugrep
+          pkgs.entr
+          pkgs.gnumake
         ];
 
       };
