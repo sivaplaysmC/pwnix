@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+
+
+import argparse
+import json
+import logging
+import os
+import signal
+import subprocess
+import enum
+import shutil
+import hashlib
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+log = logging.getLogger(__name__)
+
+info = log.info
+error = log.error
+debug = log.debug
+warning = log.warning
+
+
+def cache_key() -> str:
+    cwd = Path.cwd()
+    label = f"{cwd.parent.name}_{cwd.name}"
+    digest = hashlib.sha256(str(cwd).encode()).hexdigest()[:8]
+    return f"{label}_{digest}"
+
+
+KEY = cache_key()
+CACHE_DIR = Path.home() / ".cache" / "pwnix" / KEY
+INFO_FILE = CACHE_DIR / "info.json"
+MANIFEST_FILE = CACHE_DIR / "manifest.json"
+RESULT_BIN = CACHE_DIR / "result" / "bin" / "pwnix"
+UPPER_DIR = CACHE_DIR / "upper"
+WORK_DIR = CACHE_DIR / "workdir"
+ROOTFS_DIR = Path(__file__).resolve().parent / "rootfs"
+
+
+def read_info() -> dict:
+    return json.loads(INFO_FILE.read_text())
+
+
+def make_symlink():
+    cwd = Path.cwd()
+    tmpname = Path(f"/tmp/chall_{cwd.name}")
+    try:
+        tmpname.symlink_to(cwd)
+    except FileExistsError:
+        pass
+    info("Created symlink %s => %s" % (cwd, tmpname))
+
+
+def init():
+    script_dir = Path(__file__).resolve().parent
+    cwd = Path.cwd()
+
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    for fname in ("flake.nix", "flake.lock"):
+        src = script_dir / fname
+        dst = CACHE_DIR / fname
+        lnk = cwd / fname
+        if not dst.exists():
+            if src.exists():
+                shutil.copy(src, dst)
+                info("Copied %s to cache." % fname)
+            else:
+                warning("%s not found in %s, skipping." % (fname, script_dir))
+                continue
+        else:
+            info("%s already in cache, skipping copy." % fname)
+
+        if not lnk.exists():
+            lnk.symlink_to(dst.resolve())
+            info("Symlinked %s => %s" % (lnk, dst))
+        else:
+            info("%s already exists in cwd, skipping symlink." % fname)
+
+    build_cmd = [
+        "nix",
+        "build",
+        "--out-link",
+        str(CACHE_DIR / "result"),
+        str(CACHE_DIR),
+    ]
+    subprocess.run(build_cmd, check=True)
+
+
+def start():
+    if INFO_FILE.exists():
+        error("already running. stop it first.")
+        return
+
+    make_symlink()
+
+    if WORK_DIR.exists():
+        chmod_cmd = ["chmod", "-R", "700", str(WORK_DIR)]
+        subprocess.run(chmod_cmd)
+        shutil.rmtree(WORK_DIR)
+
+    UPPER_DIR.mkdir(parents=True, exist_ok=True)
+    WORK_DIR.mkdir(parents=True)
+
+    if not RESULT_BIN.exists():
+        error("result/bin/pwnix not found. Did you run `pwnix init`?")
+        raise FileNotFoundError(RESULT_BIN)
+
+    subprocess.check_call(
+        [str(RESULT_BIN)],
+        env={
+            **os.environ,
+            "PWNIX_ROOTFS": str(ROOTFS_DIR),
+            "PWNIX_UPPER_DIR": str(UPPER_DIR),
+            "PWNIX_WORK_DIR": str(WORK_DIR),
+            "PWNIX_INFO": str(INFO_FILE),
+            "PWNIX_MANIFEST": str(MANIFEST_FILE),
+        },
+    )
+
+
+def stop():
+    if not INFO_FILE.exists():
+        error("not running.")
+        return
+
+    info("Stopping container. Broke n***a just get some more ram and cpu.")
+
+    info_data = read_info()
+    pid = info_data["child-pid"]
+
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+    except ProcessLookupError:
+        warning("PID %d already dead." % pid)
+
+    INFO_FILE.unlink(missing_ok=True)
+    info("Removed .pwnix/info.json.")
+
+
+def attach():
+    if not INFO_FILE.exists():
+        error("not running. start it first.")
+        return
+
+    info_data = read_info()
+    pid = info_data["child-pid"]
+
+    manifest = json.loads(MANIFEST_FILE.read_text())
+    zsh = manifest["zsh"]
+
+    info("Attaching to PID %d ..." % pid)
+
+    env = {
+        "HOME": "/root",
+        "LOGNAME": "root",
+        "USER": "root",
+        "TERM": os.environ.get("TERM", "xterm-256color"),
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+    }
+
+    # fmt: off
+    cmd = [
+        "nsenter",
+        "--preserve-credentials",
+        "--target", str(pid),
+        "--user",
+        "--mount",
+        "--uts",
+        "--ipc",
+        "--pid",
+        "-G", "0",
+        "-S", "0",
+        "--",
+        zsh, "-i", "-l",
+    ]
+    # fmt: on
+
+    os.execvpe("nsenter", cmd, env)
+
+
+parser = argparse.ArgumentParser(
+    prog="pwntainer",
+    description="manage containers for pwn",
+)
+
+
+class Action(enum.StrEnum):
+    init = "init"
+    start = "start"
+    stop = "stop"
+    attach = "attach"
+
+    def __str__(self):
+        return self.value
+
+
+class Arguments:
+    action: Action
+
+
+parser.add_argument("action", choices=Action)
+args = Arguments()
+parser.parse_args(namespace=args)
+
+match args.action:
+    case Action.init:
+        init()
+    case Action.stop:
+        stop()
+    case Action.start:
+        start()
+    case Action.attach:
+        attach()
+    case _:
+        raise Exception("Not implemented")
