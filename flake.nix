@@ -155,6 +155,7 @@
           pkgs.gnugrep
           pkgs.entr
           pkgs.gnumake
+          pkgs.dpkg
         ];
 
       };
