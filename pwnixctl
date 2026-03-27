@@ -114,7 +114,7 @@ def sync():
 
 
 def start():
-    if INFO_FILE.exists():
+    if is_running():
         error("already running. stop it first.")
         return
 
@@ -146,7 +146,7 @@ def start():
 
 
 def stop():
-    if not INFO_FILE.exists():
+    if not is_running():
         error("not running.")
         return
 
