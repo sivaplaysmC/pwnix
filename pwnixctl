@@ -33,6 +33,7 @@ CACHE_DIR = Path.home() / ".cache" / "pwnix" / KEY
 INFO_FILE = CACHE_DIR / "info.json"
 MANIFEST_FILE = CACHE_DIR / "manifest.json"
 RESULT_BIN = CACHE_DIR / "result" / "bin" / "pwnix"
+RESULT_ZPROFILE = CACHE_DIR / "result" / "etc" / "zprofile"
 UPPER_DIR = CACHE_DIR / "upper"
 WORK_DIR = CACHE_DIR / "workdir"
 ROOTFS_DIR = Path(__file__).resolve().parent / "rootfs"
@@ -40,6 +41,10 @@ ROOTFS_DIR = Path(__file__).resolve().parent / "rootfs"
 
 def read_info() -> dict:
     return json.loads(INFO_FILE.read_text())
+
+
+def is_running() -> bool:
+    return INFO_FILE.exists()
 
 
 def make_symlink():
@@ -52,11 +57,23 @@ def make_symlink():
     info("Created symlink %s => %s" % (cwd, tmpname))
 
 
+def build_drv():
+    build_cmd = [
+        "nix",
+        "build",
+        "--out-link",
+        str(CACHE_DIR / "result"),
+        str(CACHE_DIR),
+    ]
+    subprocess.run(build_cmd, check=True)
+
+
 def init():
     script_dir = Path(__file__).resolve().parent
     cwd = Path.cwd()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    UPPER_DIR.mkdir(parents=True, exist_ok=True)
 
     for fname in ("flake.nix", "flake.lock"):
         src = script_dir / fname
@@ -77,15 +94,23 @@ def init():
             info("Symlinked %s => %s" % (lnk, dst))
         else:
             info("%s already exists in cwd, skipping symlink." % fname)
+    sync()
 
-    build_cmd = [
-        "nix",
-        "build",
-        "--out-link",
-        str(CACHE_DIR / "result"),
-        str(CACHE_DIR),
-    ]
-    subprocess.run(build_cmd, check=True)
+
+def sync():
+    build_drv()
+    dest = UPPER_DIR / "etc" / "zprofile"
+    if is_running():
+        root_dir = "/proc/%d/root/" % read_info()["child-pid"]
+        dest = Path(root_dir) / "etc" / "zprofile"
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.unlink(missing_ok=True)
+    shutil.copy(
+        src=RESULT_ZPROFILE,
+        dst=dest,
+        follow_symlinks=True,
+    )
 
 
 def start():
@@ -100,7 +125,6 @@ def start():
         subprocess.run(chmod_cmd)
         shutil.rmtree(WORK_DIR)
 
-    UPPER_DIR.mkdir(parents=True, exist_ok=True)
     WORK_DIR.mkdir(parents=True)
 
     if not RESULT_BIN.exists():
@@ -193,6 +217,7 @@ class Action(enum.StrEnum):
     start = "start"
     stop = "stop"
     attach = "attach"
+    sync = "sync"
 
     def __str__(self):
         return self.value
@@ -209,6 +234,8 @@ parser.parse_args(namespace=args)
 match args.action:
     case Action.init:
         init()
+    case Action.sync:
+        sync()
     case Action.stop:
         stop()
     case Action.start:

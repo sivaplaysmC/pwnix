@@ -158,7 +158,21 @@
         ];
 
       };
-      pwnix = pkgs.writeShellScriptBin "pwnix" ''
+
+      writeZprofile = pkgs.writeTextDir "etc/zprofile" ''
+        export LANG="C.UTF-8"
+        export LC_ALL="C.UTF-8"
+        export HOME=/root
+        export TERMINFO_DIRS="${pkgs.ncurses}/share/terminfo"   # for pwndbg
+        export TERM="xterm-256color"                            # for pwndbg too
+        export SHELL=${pkgs.zsh}/bin/zsh
+        export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt # for curl
+        export PATH=${env}/bin:/bin:/usr/bin                            # for all utils
+        source "${env}/share/fzf/completion.zsh"
+        source "${env}/share/fzf/key-bindings.zsh"
+      '';
+
+      pwnixEnv = pkgs.writeShellScriptBin  "pwnix" ''
         cat > "$PWNIX_MANIFEST" <<EOF
         {
           "zsh":            "${pkgs.zsh}/bin/zsh",
@@ -197,19 +211,18 @@
         127.0.0.1   $PWNIX_HOSTNAME
         ::1         localhost
         EOF3
-        cat > /etc/zprofile <<EOF2
-        export LANG="C.UTF-8"
-        export LC_ALL="C.UTF-8"
-        export HOME=/root
-        export TERMINFO_DIRS="${pkgs.ncurses}/share/terminfo"   # for pwndbg
-        export TERM="xterm-256color"                            # for pwndbg too
-        export SHELL=${pkgs.zsh}/bin/zsh
-        export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt # for curl
-        export PATH=${env}/bin:/bin:/usr/bin                            # for all utils
-        EOF2
         exec sleep infinity
         ' 9>"$PWNIX_INFO" &
       '';
+
+      pwnix = pkgs.symlinkJoin {
+        name = "pwnix";
+        paths = [
+          pwnixEnv
+          writeZprofile
+        ];
+      };
+
     in
     {
       packages.x86_64-linux.default = pwnix;
