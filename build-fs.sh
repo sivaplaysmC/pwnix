@@ -78,4 +78,8 @@ HOME="$ROOT_HOME" \
     && log "neovim bootstrap ok." \
     || die "neovim bootstrap failed — check your config."
 
+echo "pwn.college{gnma_kpQ8gfPSQg-4njC2Sl272p.0lMwQDL3ATO3czW}" > "$ROOTFS/flag"
+mkdir -p "$ROOTFS/app/"
+echo "pwn.college{gnma_kpQ8gfPSQg-4njC2Sl272p.0lMwQDL3ATO3czW}" > "$ROOTFS/app/flag"
+
 log "Done."

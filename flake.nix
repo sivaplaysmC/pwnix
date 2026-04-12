@@ -79,6 +79,7 @@
           # Python
           pythonEnv
           pkgs.pyrefly
+          pkgs.basedpyright
 
           # Ruby tools
           rubyEnv
@@ -156,6 +157,9 @@
           pkgs.entr
           pkgs.gnumake
           pkgs.dpkg
+
+          # pow shit
+          pkgs.hashcash
         ];
 
       };
@@ -169,8 +173,8 @@
         export SHELL=${pkgs.zsh}/bin/zsh
         export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt # for curl
         export PATH=${env}/bin:/bin:/usr/bin                            # for all utils
-        source "${env}/share/fzf/completion.zsh"
-        source "${env}/share/fzf/key-bindings.zsh"
+        source "${env}/share/fzf/completion.zsh" 2>/dev/null
+        source "${env}/share/fzf/key-bindings.zsh"  2>/dev/null
       '';
 
       pwnixEnv = pkgs.writeShellScriptBin  "pwnix" ''
