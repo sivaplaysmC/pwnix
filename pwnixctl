@@ -57,10 +57,11 @@ def make_symlink():
     info("Created symlink %s => %s" % (cwd, tmpname))
 
 
-def build_drv():
+def build_drv(offline=False):
     build_cmd = [
         "nix",
         "build",
+        *(["--offline"] if offline else []),
         "--out-link",
         str(CACHE_DIR / "result"),
         str(CACHE_DIR),

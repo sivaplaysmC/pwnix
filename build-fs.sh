@@ -74,7 +74,7 @@ XDG_CONFIG_HOME="$ROOT_HOME/.config" \
 XDG_DATA_HOME="$ROOT_HOME/.local/share" \
 XDG_STATE_HOME="$ROOT_HOME/.local/state" \
 HOME="$ROOT_HOME" \
-    nvim --headless "+qa" \
+	nvim --headless '+lua= require("install_treesitters")()' '+qa'  \
     && log "neovim bootstrap ok." \
     || die "neovim bootstrap failed — check your config."
 
