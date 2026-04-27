@@ -1,14 +1,16 @@
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+  inputs.nixpkgs-nvim.url = "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b";
 
   # Upstream pwndbg flake. We DON'T make it follow our nixpkgs,
   # so it runs with the versions it pins (via the app).
   inputs.pwndbg.url = "github:pwndbg/pwndbg";
 
   outputs =
-    { nixpkgs, pwndbg, ... }:
+    { nixpkgs, nixpkgs-nvim, pwndbg, ... }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; };
+      pkgs-nvim = import nixpkgs-nvim { system = "x86_64-linux"; };
       pythonEnv = pkgs.python3.withPackages (
         ps: with ps; [
           angr
@@ -140,7 +142,7 @@
           pkgs.gcc
           pkgs.musl.dev
           pkgs.yazi
-          pkgs.neovim
+          pkgs-nvim.neovim  # 0.12.1
           pkgs.zsh
           pkgs.git
           pkgs.fzf
