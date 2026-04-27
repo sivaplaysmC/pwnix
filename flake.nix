@@ -137,6 +137,8 @@
           pkgs.cacert
           pkgs.tmux
           pkgs.fd
+          pkgs.findutils
+          pkgs.gnugrep
           pkgs.ripgrep
           pkgs.jq
           pkgs.gcc
