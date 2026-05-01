@@ -161,6 +161,7 @@
           pkgs.entr
           pkgs.gnumake
           pkgs.dpkg
+          pkgs.gnupatch
 
           # pow shit
           pkgs.hashcash
